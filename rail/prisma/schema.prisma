@@ -1,0 +1,412 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String?
+  role          String    @default("STUDENT")
+  xp            Int       @default(0)
+  streak        Int       @default(1)
+  lastActiveAt  DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  profile             Profile?
+  submissions         Submission[]
+  problemProgress     UserProblemProgress[]
+  topicProgress       UserTopicProgress[]
+  notes               UserNote[]
+  bookmarks           Bookmark[]
+  revisionQueue       RevisionQueueItem[]
+  mockInterviews      MockInterview[]
+  companyTargets      UserCompanyTarget[]
+  recommendations     Recommendation[]
+  achievements        UserAchievement[]
+}
+
+model Profile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  college        String?
+  graduationYear Int?
+  targetRole     String?
+  targetCompany  String?
+  avatarUrl      String?
+  preferredLang  String   @default("python")
+  bio            String?
+}
+
+model Topic {
+  id            String    @id @default(uuid())
+  slug          String    @unique
+  name          String
+  description   String
+  level         Int
+  levelName     String
+  orderIndex    Int       @default(0)
+  difficulty    String
+  icon          String    @default("code")
+  
+  subtopics     Subtopic[]
+  problemTopics ProblemTopic[]
+  userProgress  UserTopicProgress[]
+  
+  prerequisites TopicPrerequisite[] @relation("TopicPrerequisites")
+  leadsTo       TopicPrerequisite[] @relation("TopicLeadsTo")
+}
+
+model TopicPrerequisite {
+  id             String  @id @default(uuid())
+  topicId        String
+  prerequisiteId String
+  topic          Topic   @relation("TopicPrerequisites", fields: [topicId], references: [id], onDelete: Cascade)
+  prerequisite   Topic   @relation("TopicLeadsTo", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+
+  @@unique([topicId, prerequisiteId])
+}
+
+model Subtopic {
+  id          String   @id @default(uuid())
+  topicId     String
+  topic       Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  name        String
+  slug        String
+  description String?
+  orderIndex  Int      @default(0)
+  problems    Problem[]
+}
+
+model Problem {
+  id                 String    @id @default(uuid())
+  slug               String    @unique
+  title              String
+  difficulty         String
+  adaptiveDifficulty Float     @default(1.0)
+  subtopicId         String?
+  subtopic           Subtopic? @relation(fields: [subtopicId], references: [id])
+  
+  description        String
+  constraints        String
+  examples           String
+  
+  timeComplexity     String
+  spaceComplexity    String
+  commonMistakes     String?
+  patterns           String?
+  visualizerType     String?
+  visualizerData     String?
+  
+  acceptanceRate     Float     @default(75.0)
+  totalSubmissions   Int       @default(0)
+  successfulSolves   Int       @default(0)
+  isPublished        Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  topics             ProblemTopic[]
+  tags               ProblemTag[]
+  companies          ProblemCompany[]
+  solutions          Solution[]
+  hints              Hint[]
+  testCases          TestCase[]
+  submissions        Submission[]
+  userProgress       UserProblemProgress[]
+  notes              UserNote[]
+  bookmarks          Bookmark[]
+  revisionItems      RevisionQueueItem[]
+  mockInterviewProblems MockInterviewProblem[]
+}
+
+model ProblemTopic {
+  id        String  @id @default(uuid())
+  problemId String
+  topicId   String
+  problem   Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  topic     Topic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([problemId, topicId])
+}
+
+model ProblemTag {
+  id        String  @id @default(uuid())
+  problemId String
+  problem   Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  name      String
+
+  @@unique([problemId, name])
+}
+
+model Company {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  name        String
+  logoUrl     String?
+  description String?
+  tier        String   @default("Tier 1")
+  
+  problems    ProblemCompany[]
+  userTargets UserCompanyTarget[]
+  sources     CompanySource[]
+}
+
+model ProblemCompany {
+  id              String   @id @default(uuid())
+  problemId       String
+  companyId       String
+  interviewPeriod String?
+  source          String
+  confidenceLevel String   @default("HIGH")
+  verifiedAt      DateTime @default(now())
+  isHistorical    Boolean  @default(true)
+  
+  problem         Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([problemId, companyId])
+}
+
+model CompanySource {
+  id              String   @id @default(uuid())
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sourceName      String
+  sourceUrl       String?
+  reportCount     Int      @default(1)
+  lastUpdated     DateTime @default(now())
+}
+
+model Solution {
+  id              String   @id @default(uuid())
+  problemId       String
+  problem         Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  title           String
+  approach        String
+  intuition       String
+  algorithm       String
+  pseudocode      String
+  timeComplexity  String
+  spaceComplexity String
+  dryRun          String?
+  commonMistakes  String?
+  alternatives    String?
+  
+  languages       SolutionLanguage[]
+}
+
+model SolutionLanguage {
+  id          String   @id @default(uuid())
+  solutionId  String
+  solution    Solution @relation(fields: [solutionId], references: [id], onDelete: Cascade)
+  language    String
+  code        String
+}
+
+model Hint {
+  id          String  @id @default(uuid())
+  problemId   String
+  problem     Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  orderIndex  Int
+  title       String
+  content     String
+}
+
+model TestCase {
+  id          String  @id @default(uuid())
+  problemId   String
+  problem     Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  input       String
+  expectedOutput String
+  isSample    Boolean @default(true)
+  explanation String?
+}
+
+model Submission {
+  id             String   @id @default(uuid())
+  userId         String
+  problemId      String
+  language       String
+  code           String
+  status         String
+  runtimeMs      Int?
+  memoryKb       Int?
+  hintsUsedCount Int      @default(0)
+  independence   Float    @default(100.0)
+  createdAt      DateTime @default(now())
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem        Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  results        SubmissionResult[]
+}
+
+model SubmissionResult {
+  id           String     @id @default(uuid())
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  testCaseIndex Int
+  passed       Boolean
+  actualOutput String?
+  error        String?
+}
+
+model UserProblemProgress {
+  id                String    @id @default(uuid())
+  userId            String
+  problemId         String
+  status            String    @default("UNSOLVED")
+  bestIndependence  Float     @default(0.0)
+  hintsRevealed     Int       @default(0)
+  solutionRevealed  Boolean   @default(false)
+  attemptsCount     Int       @default(0)
+  solvedAt          DateTime?
+  lastAttemptedAt   DateTime  @default(now())
+  timeSpentSeconds  Int       @default(0)
+
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem           Problem   @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, problemId])
+}
+
+model UserTopicProgress {
+  id             String   @id @default(uuid())
+  userId         String
+  topicId        String
+  masteryScore   Float    @default(0.0)
+  problemsSolved Int      @default(0)
+  totalProblems  Int      @default(0)
+  status         String   @default("LOCKED")
+  updatedAt      DateTime @default(now())
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic          Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, topicId])
+}
+
+model UserNote {
+  id        String   @id @default(uuid())
+  userId    String
+  problemId String
+  content   String
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem   Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, problemId])
+}
+
+model Bookmark {
+  id        String   @id @default(uuid())
+  userId    String
+  problemId String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem   Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, problemId])
+}
+
+model RevisionQueueItem {
+  id             String   @id @default(uuid())
+  userId         String
+  problemId      String
+  category       String
+  intervalDays   Int      @default(1)
+  nextReviewDate DateTime
+  reviewCount    Int      @default(0)
+  notes          String?
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem        Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, problemId])
+}
+
+model MockInterview {
+  id              String   @id @default(uuid())
+  userId          String
+  targetCompany   String
+  difficulty      String
+  durationMinutes Int      @default(60)
+  status          String   @default("PENDING")
+  score           Float?
+  feedback        String?
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problems        MockInterviewProblem[]
+}
+
+model MockInterviewProblem {
+  id              String        @id @default(uuid())
+  mockInterviewId String
+  problemId       String
+  orderIndex      Int
+  status          String        @default("UNSOLVED")
+  timeSpentSec    Int           @default(0)
+  hintsUsed       Int           @default(0)
+  codeSubmitted   String?
+
+  mockInterview   MockInterview @relation(fields: [mockInterviewId], references: [id], onDelete: Cascade)
+  problem         Problem       @relation(fields: [problemId], references: [id], onDelete: Cascade)
+}
+
+model UserCompanyTarget {
+  id        String   @id @default(uuid())
+  userId    String
+  companyId String
+  targetDate DateTime?
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+}
+
+model Recommendation {
+  id          String   @id @default(uuid())
+  userId      String
+  type        String
+  title       String
+  message     String
+  actionUrl   String
+  priority    Int      @default(1)
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Achievement {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  description String
+  badgeIcon   String
+  xpReward    Int      @default(50)
+
+  users       UserAchievement[]
+}
+
+model UserAchievement {
+  id            String      @id @default(uuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime    @default(now())
+
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+}

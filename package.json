@@ -1,0 +1,25 @@
+{
+  "name": "railtrack-india",
+  "version": "1.0.0",
+  "description": "Modern Indian Train Monitoring & Tracking Website with React, Vite, Leaflet, Express, and Railway API abstraction layer",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "test": "npm --prefix backend test"
+  },
+  "keywords": [
+    "indian-railways",
+    "train-tracking",
+    "react",
+    "leaflet",
+    "express",
+    "typescript"
+  ],
+  "author": "RailTrack India Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}
